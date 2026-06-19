@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Transcriber - បំប្លែងវីដេអូទៅជាអត្ថបទ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Kantumruy+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'Kantumruy Pro', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(241, 241, 241, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.6); }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
+
+    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-brand-500 to-indigo-500 p-2.5 rounded-xl shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-closed-captioning text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-brand-400 via-indigo-200 to-white bg-clip-text text-transparent flex items-center gap-2">
+                        <span>V-Scribe AI</span>
+                        <span class="text-[10px] bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full font-medium uppercase tracking-wider">PRO</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400">AI-Powered Video Transcription</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- API Key Configuration Trigger -->
+                <button id="btn-key-settings" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition duration-200 text-amber-400">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Key</span>
+                </button>
+                <button id="lang-toggle" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs transition duration-200">
+                    <i class="fa-solid fa-globe text-brand-400"></i>
+                    <span id="current-lang-text">ខ្មែរ</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col space-y-6">
+        
+        <div class="bg-gradient-to-r from-brand-900/40 to-slate-900 border border-brand-500/20 rounded-2xl p-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl"></div>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <h2 class="text-xl font-bold" data-translate="welcome_title">បំប្លែងវីដេអូទៅជាអត្ថបទយ៉ាងរហ័ស និងត្រឹមត្រូវ</h2>
+                    <p class="text-sm text-slate-400 max-w-2xl" data-translate="welcome_desc">បញ្ចូលវីដេអូ ឬសំឡេងរបស់អ្នកដើម្បីឱ្យបញ្ញាសិប្បនិម្មិត (AI) ធ្វើការបំប្លែងអត្ថបទ រៀបចំលំដាប់ពេលវេលា (timestamps) និងសង្ខេបខ្លឹមសារសំខាន់ៗភ្លាមៗ។</p>
+                </div>
+                <div class="flex items-center space-x-2 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800 self-start">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs text-slate-300 font-medium">Gemini 2.5 Flash Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div class="lg:col-span-5 space-y-6">
+                <div id="upload-zone" class="bg-slate-950 border-2 border-dashed border-slate-800 hover:border-brand-500/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 group min-h-[300px]">
+                    <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+                    <div class="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center border border-slate-800 group-hover:scale-110 group-hover:bg-brand-500/10 group-hover:border-brand-500/30 transition-all duration-300 mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 group-hover:text-brand-400"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-slate-200" data-translate="upload_title">ជ្រើសរើស ឬទាញយកឯកសារមកទីនេះ</h3>
+                    <p class="text-xs text-slate-400 mt-2 max-w-xs" data-translate="upload_limits">គាំទ្រ MP4, WebM, MP3, WAV (បង្រួមឯកសារធំៗដោយស្វ័យប្រវត្ត)</p>
+                    
+                    <div id="file-loading-container" class="w-full mt-4 max-w-xs hidden">
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-slate-400" id="file-loading-text">កំពុងអានទិន្នន័យឯកសារ...</span>
+                            <span class="text-brand-400 font-mono" id="file-loading-percent">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                            <div id="file-loading-progress" class="bg-gradient-to-r from-brand-500 to-indigo-500 h-1.5 rounded-full w-0 transition-all duration-150"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="media-preview-card" class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4 hidden transition-all duration-300">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center space-x-2.5 overflow-hidden py-1">
+                            <span class="bg-brand-500/10 text-brand-400 p-1.5 rounded-lg text-sm flex-shrink-0">
+                                <i id="media-icon" class="fa-solid fa-file-video"></i>
+                            </span>
+                            <div class="flex flex-col overflow-hidden">
+                                <span id="media-filename" class="text-xs font-medium text-slate-300 truncate">video.mp4</span>
+                                <span id="media-filesize" class="text-[10px] text-slate-500">0 MB</span>
+                            </div>
+                        </div>
+                        <button id="btn-remove-media" class="text-slate-500 hover:text-rose-400 transition text-xs p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+
+                    <div class="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center">
+                        <video id="video-player" class="w-full h-full object-contain hidden" controls></video>
+                        <audio id="audio-player" class="w-full px-4 hidden" controls></controls>
+                        <div id="audio-visualizer-placeholder" class="hidden flex-col items-center justify-center space-y-3 p-6 text-center">
+                            <div class="flex items-end justify-center space-x-1.5 h-12">
+                                <div class="w-1.5 bg-brand-500 rounded-full animate-[bounce_1s_infinite_100ms] h-8"></div>
+                                <div class="w-1.5 bg-indigo-500 rounded-full animate-[bounce_1s_infinite_200ms] h-12"></div>
+                                <div class="w-1.5 bg-brand-500 rounded-full animate-[bounce_1s_infinite_300ms] h-6"></div>
+                            </div>
+                            <p class="text-xs text-slate-400">ឯកសារសំឡេងកំពុងលេង...</p>
+                        </div>
+                    </div>
+
+                    <button id="btn-start-transcribe" class="w-full bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 transition-all duration-300 flex items-center justify-center space-x-2 group">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span data-translate="btn_transcribe">ចាប់ផ្តើមបំប្លែងអត្ថបទ (Transcribe)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden flex flex-col min-h-[500px]">
+                    <div class="bg-slate-900/60 border-b border-slate-800 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+                            <h3 class="text-sm font-semibold text-slate-200" data-translate="result_title">លទ្ធផលបំប្លែង</h3>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative inline-block text-left">
+                                <button id="btn-export" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-xs px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition" disabled>
+                                    <i class="fa-solid fa-download"></i>
+                                    <span data-translate="export">ទាញយក</span>
+                                </button>
+                                <div id="export-menu" class="hidden absolute right-0 mt-2 w-44 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl z-20">
+                                    <div class="py-1">
+                                        <button onclick="exportTranscript('docx')" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center space-x-2">
+                                            <i class="fa-regular fa-file-word text-blue-400"></i><span>Word Document (.doc)</span>
+                                        </button>
+                                        <button onclick="exportTranscript('txt')" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center space-x-2">
+                                            <i class="fa-regular fa-file-lines text-slate-400"></i><span>Text (.txt)</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="btn-copy" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-xs px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition" disabled>
+                                <i class="fa-regular fa-copy"></i><span data-translate="copy">ចម្លង</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow p-6 flex flex-col">
+                        <div id="state-empty" class="flex-grow flex flex-col items-center justify-center text-center p-8 space-y-4">
+                            <div class="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center border border-slate-800">
+                                <i class="fa-solid fa-file-waveform text-xl text-slate-500"></i>
+                            </div>
+                            <h4 class="text-sm font-semibold text-slate-300" data-translate="no_results_yet">ពុំទាន់មានលទ្ធផលនៅឡើយទេ</h4>
+                        </div>
+
+                        <div id="state-loading" class="hidden flex-grow flex flex-col items-center justify-center text-center p-8 space-y-6">
+                            <div class="relative w-20 h-20">
+                                <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
+                                <div class="absolute inset-0 rounded-full border-4 border-t-brand-500 border-r-indigo-500 animate-spin"></div>
+                            </div>
+                            <h4 id="loading-title" class="text-sm font-semibold text-slate-200">AI កំពុងវិភាគ និងបំប្លែងសំឡេង...</h4>
+                            <div class="w-full max-w-xs bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                                <div id="loading-progress-bar" class="bg-gradient-to-r from-brand-500 to-indigo-500 h-1.5 rounded-full w-0 transition-all duration-500"></div>
+                            </div>
+                        </div>
+
+                        <div id="state-result" class="hidden flex-grow flex flex-col space-y-6">
+                            <div class="bg-gradient-to-br from-brand-950/20 to-slate-900/60 border border-brand-500/10 p-4 rounded-xl space-y-2">
+                                <h5 class="text-xs font-semibold text-brand-400 flex items-center gap-1.5"><i class="fa-solid fa-sparkles"></i><span>សង្ខេបខ្លឹមសារវីដេអូ</span></h5>
+                                <p id="result-summary" class="text-xs text-slate-300 leading-relaxed italic">កំពុងរៀបចំ...</p>
+                            </div>
+                            <div class="space-y-3">
+                                <div id="transcript-flow" class="text-sm text-slate-300 leading-relaxed text-justify space-y-2 max-h-[380px] overflow-y-auto pr-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom API Key Settings Modal -->
+    <div id="modal-key" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 m-4 shadow-2xl relative">
+            <h3 class="text-lg font-bold text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-400"></i>
+                <span>Gemini API Key Settings</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                បើសិនជាប្រព័ន្ធស្វ័យប្រវត្តិជួបបញ្ហា error 401 (Unauthorized) ឬ 404 (Not Found) សូមបញ្ចូល Gemini API Key ផ្ទាល់ខ្លួនរបស់អ្នកនៅទីនេះ។
+                <br><br>
+                If the automatic environment key fails with a 401 or 404 error, please configure your own Gemini API key manually below:
+            </p>
+            <div class="mt-4">
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Your Gemini API Key</label>
+                <input type="password" id="input-api-key" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500 transition">
+            </div>
+            <div class="mt-6 flex items-center justify-end space-x-3">
+                <button id="btn-close-key-modal" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-xl transition">
+                    បិទ / Close
+                </button>
+                <button id="btn-save-key" class="bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium text-xs px-5 py-2 rounded-xl shadow-lg transition">
+                    រក្សាទុក / Save Key
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+        <span id="toast-icon" class="text-brand-400 text-sm"><i class="fa-solid fa-circle-check"></i></span>
+        <span id="toast-message" class="text-xs font-medium">ជោគជ័យ!</span>
+    </div>
+
+    <script>
+        // MUST remain empty string. The platform tries to auto-inject sandbox credentials here.
+        const apiKey = "";
+
+        const translations = {
+            km: {
+                welcome_title: "បំប្លែងវីដេអូទៅជាអត្ថបទយ៉ាងរហ័ស និងត្រឹមត្រូវ",
+                welcome_desc: "បញ្ចូលវីដេអូ ឬសំឡេងរបស់អ្នកដើម្បីឱ្យបញ្ញាសិប្បនិម្មិត (AI) ធ្វើការបំប្លែងអត្ថបទ រៀបចំលំដាប់ពេលវេលា (timestamps) និងសង្ខេបខ្លឹមសារសំខាន់ៗភ្លាមៗ។",
+                upload_title: "ជ្រើសរើស ឬទាញយកឯកសារមកទីនេះ",
+                upload_limits: "គាំទ្រ MP4, WebM, MP3, WAV (បង្រួមឯកសារធំៗដោយស្វ័យប្រវត្ត)",
+                btn_transcribe: "ចាប់ផ្តើមបំប្លែងអត្ថបទ (Transcribe)",
+                result_title: "លទ្ធផលបំប្លែង", export: "នាំចេញ", copy: "ចម្លង",
+                no_results_yet: "ពុំទាន់មានលទ្ធផលនៅឡើយទេ"
+            },
+            en: {
+                welcome_title: "Transcribe Video to Text Instantly",
+                welcome_desc: "Upload your video or audio file and let AI generate transcripts and summaries.",
+                upload_title: "Drag & drop files here or click to browse",
+                upload_limits: "Supports MP4, WebM, MP3, WAV (Auto-compressed)",
+                btn_transcribe: "Start AI Transcription",
+                result_title: "Transcription Results", export: "Export", copy: "Copy",
+                no_results_yet: "No Results Yet"
+            }
+        };
+
+        let appState = { 
+            lang: 'km', 
+            fileObject: null, 
+            mediaUrl: null, 
+            transcribedData: null,
+            customApiKey: "" // Local custom fallback key storage
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            setLanguage('km');
+        });
+
+        function setLanguage(lang) {
+            appState.lang = lang;
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.getAttribute('data-translate');
+                if (translations[lang][key]) el.textContent = translations[lang][key];
+            });
+            document.getElementById('current-lang-text').textContent = lang === 'km' ? 'ខ្មែរ' : 'English';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3";
+            setTimeout(() => {
+                toast.className = "fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3";
+            }, 3000);
+        }
+
+        // Smart Khmer spacing cleanup function
+        function cleanKhmerSpaces(text) {
+            if (!text) return "";
+            // Remove spaces between Khmer Unicode characters (range: \u1780-\u17FF)
+            return text.replace(/([\u1780-\u17FF])\s+([\u1780-\u17FF])/g, '$1$2')
+                       .replace(/\s+/g, ' '); // Normalize other multiple spaces to single space
+        }
+
+        function setupEventListeners() {
+            document.getElementById('lang-toggle').addEventListener('click', () => setLanguage(appState.lang === 'km' ? 'en' : 'km'));
+            document.getElementById('upload-zone').addEventListener('click', () => document.getElementById('file-input').click());
+            document.getElementById('file-input').addEventListener('change', handleFileSelection);
+            document.getElementById('btn-remove-media').addEventListener('click', removeMedia);
+            document.getElementById('btn-start-transcribe').addEventListener('click', startTranscribing);
+            document.getElementById('btn-export').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('export-menu').classList.toggle('hidden'); });
+            document.body.addEventListener('click', () => document.getElementById('export-menu').classList.add('hidden'));
+            
+            // Key Setup Actions
+            document.getElementById('btn-key-settings').addEventListener('click', openKeyModal);
+            document.getElementById('btn-close-key-modal').addEventListener('click', closeKeyModal);
+            document.getElementById('btn-save-key').addEventListener('click', saveCustomApiKey);
+
+            document.getElementById('btn-copy').addEventListener('click', () => {
+                if (!appState.transcribedData) return;
+                const text = appState.transcribedData.segments.map(s => s.text).join(' ');
+                navigator.clipboard.writeText(text);
+                showToast("ចម្លងអត្ថបទជោគជ័យ!");
+            });
+        }
+
+        function openKeyModal() {
+            document.getElementById('input-api-key').value = appState.customApiKey;
+            document.getElementById('modal-key').classList.remove('hidden');
+        }
+
+        function closeKeyModal() {
+            document.getElementById('modal-key').classList.add('hidden');
+        }
+
+        function saveCustomApiKey() {
+            const rawKey = document.getElementById('input-api-key').value.trim();
+            appState.customApiKey = rawKey;
+            closeKeyModal();
+            showToast("បានរក្សាទុក API Key! Saved successfully.");
+        }
+
+        function handleFileSelection() {
+            const file = document.getElementById('file-input').files[0];
+            if (!file) return;
+            appState.fileObject = file;
+
+            document.getElementById('upload-zone').classList.add('hidden');
+            document.getElementById('media-preview-card').classList.remove('hidden');
+            document.getElementById('media-filename').textContent = file.name;
+            document.getElementById('media-filesize').textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+            const url = URL.createObjectURL(file);
+            appState.mediaUrl = url;
+
+            if (file.type.startsWith('video/')) {
+                const p = document.getElementById('video-player'); p.src = url; p.classList.remove('hidden');
+                document.getElementById('audio-player').classList.add('hidden');
+                document.getElementById('audio-visualizer-placeholder').classList.add('hidden');
+            } else {
+                const p = document.getElementById('audio-player'); p.src = url; p.classList.remove('hidden');
+                document.getElementById('video-player').classList.add('hidden');
+                document.getElementById('audio-visualizer-placeholder').classList.remove('hidden');
+            }
+        }
+
+        function removeMedia() {
+            if (appState.mediaUrl) URL.revokeObjectURL(appState.mediaUrl);
+            appState.fileObject = null;
+            document.getElementById('file-input').value = "";
+            document.getElementById('media-preview-card').classList.add('hidden');
+            document.getElementById('upload-zone').classList.remove('hidden');
+            document.getElementById('state-empty').classList.remove('hidden');
+            document.getElementById('state-result').classList.add('hidden');
+            document.getElementById('btn-export').disabled = true;
+            document.getElementById('btn-copy').disabled = true;
+        }
+
+        async function extractAndCompressAudio(file) {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            
+            const targetSampleRate = 16000;
+            const offlineCtx = new OfflineAudioContext(1, targetSampleRate * audioBuffer.duration, targetSampleRate);
+            const source = offlineCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(offlineCtx.destination);
+            source.start();
+            
+            const renderedBuffer = await offlineCtx.startRendering();
+            const wavBytes = bufferToWav(renderedBuffer);
+            const blob = new Blob([wavBytes], { type: 'audio/wav' });
+            
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function bufferToWav(buffer) {
+            const samples = buffer.getChannelData(0);
+            const bufferArr = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(bufferArr);
+            const writeString = (view, offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+            
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE'); writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+            view.setUint32(24, 16000, true); view.setUint32(28, 32000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+            writeString(view, 36, 'data'); view.setUint32(40, samples.length * 2, true);
+            
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+            return bufferArr;
+        }
+
+        // Custom fetch wrapper with exponential backoff for robust API calls
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    
+                    // Fail early on 401/403 authorization failures to avoid retrying bad keys.
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error(`AUTH_FAIL: HTTP ${response.status}`);
+                    }
+                    
+                    // Fail early on 404 Model Not Found to enable model sequence fallback instantly
+                    if (response.status === 404) {
+                        throw new Error(`MODEL_NOT_FOUND: HTTP 404`);
+                    }
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.startsWith("AUTH_FAIL") || error.message.startsWith("MODEL_NOT_FOUND") || i === maxRetries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+        }
+
+        async function startTranscribing() {
+            if (!appState.fileObject) return;
+            document.getElementById('state-empty').classList.add('hidden');
+            document.getElementById('state-loading').classList.remove('hidden');
+            const bar = document.getElementById('loading-progress-bar');
+            
+            try {
+                document.getElementById('loading-title').textContent = "កំពុងស្រង់ចេញ និងបង្រួមសំឡេង...";
+                bar.style.width = "40%";
+                const base64Audio = await extractAndCompressAudio(appState.fileObject);
+                
+                document.getElementById('loading-title').textContent = "Google Gemini AI កំពុងបំប្លែងជាអត្ថបទ...";
+                bar.style.width = "75%";
+                
+                // Prioritize user's manual key, fallback to auto-injected platform key.
+                const activeKey = appState.customApiKey || apiKey;
+                
+                if (!activeKey) {
+                    throw new Error("AUTH_FAIL: API key is empty. Please set your key.");
+                }
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: "Transcribe the exact spoken words in this audio file directly into clear text sentences. For the Khmer language, make sure to write continuously without inserting spaces between individual words (standard Khmer orthography), and only use spaces at natural clause or sentence boundaries. Return exclusively a JSON object matching the requested schema." },
+                            { inlineData: { mimeType: "audio/wav", data: base64Audio } }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                summary: { type: "STRING" },
+                                segments: { type: "ARRAY", items: { type: "OBJECT", properties: { text: { type: "STRING" } }, required: ["text"] } }
+                            },
+                            required: ["summary", "segments"]
+                        }
+                    }
+                };
+
+                // Fallback list of models to try in sequence to resolve any 404 issues
+                const models = [
+                    "gemini-2.5-flash-preview-09-2025",
+                    "gemini-2.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-flash"
+                ];
+
+                let data = null;
+                let lastError = null;
+                let success = false;
+
+                for (const model of models) {
+                    try {
+                        console.log(`Attempting transcription using model: ${model}`);
+                        document.getElementById('loading-title').textContent = `Google AI (${model}) កំពុងបំប្លែងជាអត្ថបទ...`;
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+                        
+                        data = await fetchWithRetry(url, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify(payload) 
+                        });
+                        
+                        success = true;
+                        break; // Successful request, exit model chain loop
+                    } catch (err) {
+                        console.warn(`Model ${model} failed with error:`, err);
+                        lastError = err;
+                        
+                        // Fail instantly and ask for key if it's an authorization issue
+                        if (err.message.includes("AUTH_FAIL")) {
+                            throw err;
+                        }
+                        // For other failures (like 404 MODEL_NOT_FOUND), try the next model immediately
+                    }
+                }
+
+                if (!success || !data) {
+                    throw lastError || new Error("All transcription models failed.");
+                }
+                
+                const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!textResponse) throw new Error("Invalid Output");
+                
+                let rawResult = JSON.parse(textResponse);
+                
+                // Process and clean Khmer spaces from the results
+                rawResult.summary = cleanKhmerSpaces(rawResult.summary);
+                rawResult.segments = rawResult.segments.map(s => {
+                    s.text = cleanKhmerSpaces(s.text);
+                    return s;
+                });
+
+                appState.transcribedData = rawResult;
+                
+                document.getElementById('state-loading').classList.add('hidden');
+                document.getElementById('state-result').classList.remove('hidden');
+                document.getElementById('result-summary').textContent = appState.transcribedData.summary;
+                
+                const flow = document.getElementById('transcript-flow');
+                flow.innerHTML = appState.transcribedData.segments.map(s => `<span>${s.text}</span>`).join(' ');
+                
+                document.getElementById('btn-export').disabled = false;
+                document.getElementById('btn-copy').disabled = false;
+                showToast("បំប្លែងជោគជ័យ!");
+            } catch (err) {
+                console.error(err);
+                document.getElementById('state-loading').classList.add('hidden');
+                document.getElementById('state-empty').classList.remove('hidden');
+                
+                if (err.message.includes("AUTH_FAIL")) {
+                    openKeyModal();
+                    showToast("សូមកំណត់ API Key របស់អ្នក / Please set your API Key");
+                } else {
+                    alert("ការបំប្លែងមានបញ្ហា! សូមប្រាកដថាឯកសារវីដេអូមានសំឡេង និងព្យាយាមម្តងទៀត។\n\n" + err.message);
+                }
+            }
+        }
+
+        window.exportTranscript = function(format) {
+            if (!appState.transcribedData) return;
+            const plainText = appState.transcribedData.segments.map(s => s.text).join(' ');
+            let content = '', mime = 'text/plain', ext = 'txt';
+            
+            if (format === 'docx') {
+                ext = 'doc'; // Change to .doc format so that modern MS Word parses it cleanly without ZIP validation error!
+                mime = 'application/msword';
+                content = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><style>body { font-family: 'Kantumruy Pro', 'Khmer OS Battambang', 'Arial', sans-serif; line-height: 1.6; color: #333333; } h2 { color: #7c3aed; }</style></head><body><h2>របាយការណ៍បំប្លែងអត្ថបទ - V-Scribe AI</h2><p><b>សេចក្តីសង្ខេប (Summary):</b> ${appState.transcribedData.summary}</p><hr/><p style="text-align: justify; font-size: 11pt;">${plainText}</p></body></html>`;
+            } else {
+                content = `Summary: ${appState.transcribedData.summary}\n\nTranscript:\n${plainText}`;
+            }
+            
+            const blob = new Blob([content], { type: mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Transcript_${new Date().toISOString().slice(0,10)}.${ext}`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        };
+    </script>
+</body>
+</html>
